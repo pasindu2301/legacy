@@ -1,15 +1,23 @@
 import { createElement, useEffect, useRef, useState } from 'react'
 import './App.css'
+import heroImage from './assets/main image.avif'
+import approachImage from './assets/section3.avif'
+import contactImage from './assets/contact_image.avif'
+import section11Image from './assets/section1.1.avif'
+import section12Image from './assets/section1.2.avif'
+import section13Image from './assets/section1.3.avif'
+import section14Image from './assets/section1.4.avif'
+import section15Image from './assets/section1.5.avif'
+import section21Image from './assets/section2.1.avif'
+import section22Image from './assets/section2.2.avif'
+import section23Image from './assets/section2.3.avif'
 
 /** Sample imagery — replace with your own assets anytime. */
 const IMG = {
-  hero:
-    'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=960&q=80',
+  hero: heroImage,
   heroMesh: '/images/hero-mesh.svg',
-  approach:
-    'https://images.unsplash.com/photo-1497366216548-375260702974?auto=format&fit=crop&w=1400&q=80',
-  contact:
-    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=900&q=80',
+  approach: approachImage,
+  contact: contactImage,
 }
 
 const NAV = [
@@ -23,36 +31,31 @@ const FOCUS_AREAS = [
   {
     title: 'Integrate legacy and modern systems',
     body: 'Connect fragmented platforms, databases, and cloud sources into one governed foundation.',
-    image:
-      'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80',
+    image: section11Image,
     alt: 'Server racks representing connected enterprise systems',
   },
   {
     title: 'Automate reporting and dashboards',
     body: 'Replace manual workflows with pipelines that deliver reliable metrics on schedule.',
-    image:
-      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80',
+    image: section12Image,
     alt: 'Analytics dashboard on a laptop screen',
   },
   {
     title: 'AI-enabled analytics',
     body: 'Layer on predictive insights, anomaly detection, and natural-language querying.',
-    image:
-      'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
+    image: section13Image,
     alt: 'Abstract visualization suggesting AI and data patterns',
   },
   {
     title: 'Workflow automation',
     body: 'Improve operational efficiency with intelligent automation across your teams.',
-    image:
-      'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80',
+    image: section14Image,
     alt: 'Team planning workflow at a desk with documents',
   },
   {
     title: 'Scalable data platforms',
     body: 'Build foundations that scale as you adopt more advanced AI capabilities.',
-    image:
-      'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+    image: section15Image,
     alt: 'Earth from space suggesting global scale and connectivity',
   },
 ]
@@ -63,7 +66,7 @@ const STEPS = [
     title: 'Connect & clean',
     body: 'We integrate legacy platforms, spreadsheets, and cloud sources with automated quality checks so your data is trustworthy from day one.',
     image:
-      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80',
+      section21Image,
     alt: 'Hands typing on a laptop representing data integration work',
   },
   {
@@ -71,7 +74,7 @@ const STEPS = [
     title: 'Automate & illuminate',
     body: 'Intelligent pipelines replace manual effort with real-time dashboards, scheduled reports, and clear visibility into what matters.',
     image:
-      'https://images.unsplash.com/photo-1460925905917-afd5a58db3ed?auto=format&fit=crop&w=900&q=80',
+      section22Image,
     alt: 'Charts and graphs illustrating business analytics',
   },
   {
@@ -79,7 +82,7 @@ const STEPS = [
     title: 'Activate AI & scale',
     body: 'Add predictive analytics and NL querying on a platform designed to grow with your organisation.',
     image:
-      'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=900&q=80',
+      section23Image,
     alt: 'Modern workspace with technology and collaboration',
   },
 ]
