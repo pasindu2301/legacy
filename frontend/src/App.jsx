@@ -503,11 +503,6 @@ function Contact() {
           </p>
           <div className="contact-details">
             <p>
-              <strong>Phone</strong>
-              <br />
-              <a href="tel:+61430050480">+61 430 050 480</a>
-            </p>
-            <p>
               <strong>Email</strong>
               <br />
               <a href="mailto:hello@legacyx.pro">hello@legacyx.pro</a>
