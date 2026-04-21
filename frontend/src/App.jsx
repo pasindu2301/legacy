@@ -403,9 +403,34 @@ function ContactForm() {
   const [status, setStatus] = useState('idle')
   const [form, setForm] = useState({ name: '', email: '', message: '' })
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    setStatus('sent')
+    setStatus('sending')
+
+    try {
+      const body = new FormData()
+      body.append('_subject', 'New LegacyX waitlist submission')
+      body.append('name', form.name)
+      body.append('email', form.email)
+      body.append('message', form.message)
+
+      const res = await fetch('https://formsubmit.co/ajax/sri.u@outlook.com', {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body,
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || data.success !== 'true') {
+        throw new Error('Failed to send form')
+      }
+
+      setStatus('sent')
+      setForm({ name: '', email: '', message: '' })
+    } catch {
+      setStatus('error')
+    }
   }
 
   if (status === 'sent') {
@@ -469,9 +494,14 @@ function ContactForm() {
           placeholder="Tell us about your data environment and goals."
         />
       </div>
-      <button type="submit" className="btn btn--primary btn--block">
-        Join waitlist
+      <button type="submit" className="btn btn--primary btn--block" disabled={status === 'sending'}>
+        {status === 'sending' ? 'Sending...' : 'Join waitlist'}
       </button>
+      {status === 'error' && (
+        <p className="contact-footnote" role="alert">
+          We could not send your message right now. Please try again.
+        </p>
+      )}
     </form>
   )
 }
