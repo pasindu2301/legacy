@@ -1,6 +1,7 @@
 import { createElement, useEffect, useRef, useState } from 'react'
 import './App.css'
 import heroImage from './assets/main image.avif'
+import logo from './assets/logo.png'
 import approachImage from './assets/section3.avif'
 import contactImage from './assets/contact_image.avif'
 import section11Image from './assets/section1.1.avif'
@@ -168,8 +169,7 @@ function Header() {
             window.scrollTo({ top: 0, behavior: 'smooth' })
           }}
         >
-          <span className="logo__mark">LX</span>
-          <span className="logo__text">LegacyX</span>
+          <img src={logo} alt="LegacyX Logo" className="logo__img" />
         </a>
 
         <button

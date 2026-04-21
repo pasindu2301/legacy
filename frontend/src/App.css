@@ -166,6 +166,14 @@
   transform: translateY(-1px);
 }
 
+.logo__img {
+  display: block;
+  width: clamp(150px, 20vw, 230px);
+  height: auto;
+  max-height: 54px;
+  object-fit: contain;
+}
+
 .logo__mark {
   display: inline-flex;
   align-items: center;
