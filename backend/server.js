@@ -8,7 +8,12 @@ dotenv.config()
 const app = express()
 const port = Number(process.env.PORT || 5000)
 const host = process.env.HOST || '127.0.0.1'
-const frontendOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:5173'
+const frontendOrigin =
+  process.env.FRONTEND_ORIGIN || 'http://localhost:5173,https://legacyx.pro,https://www.legacyx.pro'
+const allowedOrigins = frontendOrigin
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
 const adminPassword = process.env.ADMIN_PASSWORD || ''
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -51,7 +56,16 @@ function requireAdmin(req, res, next) {
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
-app.use(cors({ origin: frontendOrigin }))
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow non-browser/server-to-server requests with no origin header.
+      if (!origin) return callback(null, true)
+      if (allowedOrigins.includes(origin)) return callback(null, true)
+      return callback(new Error('Not allowed by CORS'))
+    },
+  }),
+)
 app.use(express.json())
 
 // ── Routes ────────────────────────────────────────────────────────────────────

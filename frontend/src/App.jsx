@@ -405,7 +405,7 @@ function ContactForm() {
   const [errorMessage, setErrorMessage] = useState('')
   const source = (import.meta.env.VITE_WAITLIST_SOURCE || 'legacyx').toLowerCase().trim()
 
-  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000').replace(/\/$/, '')
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://backend.legacyx.pro/').replace(/\/$/, '')
 
   async function handleSubmit(e) {
     e.preventDefault()
