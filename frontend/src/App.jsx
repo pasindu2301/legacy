@@ -402,33 +402,41 @@ function Approach() {
 function ContactForm() {
   const [status, setStatus] = useState('idle')
   const [form, setForm] = useState({ name: '', email: '', message: '' })
+  const [errorMessage, setErrorMessage] = useState('')
+  const source = (import.meta.env.VITE_WAITLIST_SOURCE || 'legacyx').toLowerCase().trim()
+
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000').replace(/\/$/, '')
 
   async function handleSubmit(e) {
     e.preventDefault()
     setStatus('sending')
+    setErrorMessage('')
 
     try {
-      const body = new FormData()
-      body.append('_subject', 'New LegacyX waitlist submission')
-      body.append('name', form.name)
-      body.append('email', form.email)
-      body.append('message', form.message)
-
-      const res = await fetch('https://formsubmit.co/ajax/sri.u@outlook.com', {
+      const res = await fetch(`${apiBaseUrl}/api/waitlist`, {
         method: 'POST',
-        headers: { Accept: 'application/json' },
-        body,
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          message: form.message,
+          source,
+        }),
       })
 
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
 
-      if (!res.ok || data.success !== 'true') {
-        throw new Error('Failed to send form')
+      if (!res.ok || data.success !== true) {
+        throw new Error(data.error || 'Failed to send form')
       }
 
       setStatus('sent')
       setForm({ name: '', email: '', message: '' })
-    } catch {
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'We could not send your message right now.')
       setStatus('error')
     }
   }
@@ -499,7 +507,7 @@ function ContactForm() {
       </button>
       {status === 'error' && (
         <p className="contact-footnote" role="alert">
-          We could not send your message right now. Please try again.
+          {errorMessage || 'We could not send your message right now. Please try again.'}
         </p>
       )}
     </form>
