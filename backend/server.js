@@ -8,13 +8,17 @@ dotenv.config()
 const app = express()
 const port = Number(process.env.PORT || 5000)
 const host = process.env.HOST || '127.0.0.1'
-const frontendOrigin =
-  process.env.FRONTEND_ORIGIN || 'http://localhost:5173,https://legacyx.pro,https://www.legacyx.pro'
-const allowedOrigins = frontendOrigin
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean)
+const frontendOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:5173'
+const allowedOrigins = [
+  frontendOrigin,
+  'https://intuvision.pro',
+  'https://www.intuvision.pro',
+  'https://legacyx.pro',
+  'https://www.legacyx.pro',
+]
 const adminPassword = process.env.ADMIN_PASSWORD || ''
+
+// ── Supabase ──────────────────────────────────────────────────────────────────
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -29,7 +33,7 @@ if (!supabaseUrl || !publicSupabaseKey) {
 const publicSupabase = createClient(supabaseUrl, publicSupabaseKey)
 const adminSupabase = serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : ''
@@ -59,9 +63,9 @@ function requireAdmin(req, res, next) {
 app.use(
   cors({
     origin(origin, callback) {
-      // Allow non-browser/server-to-server requests with no origin header.
       if (!origin) return callback(null, true)
-      if (allowedOrigins.includes(origin)) return callback(null, true)
+      const normalizedOrigin = origin.replace(/\/$/, '')
+      if (allowedOrigins.includes(normalizedOrigin)) return callback(null, true)
       return callback(new Error('Not allowed by CORS'))
     },
   }),
@@ -77,12 +81,12 @@ app.get('/api/health', (_, res) => {
 app.post('/api/waitlist', async (req, res) => {
   try {
     const {
-      name = '',
-      email = '',
+      name    = '',
+      email   = '',
       company = '',
-      phone = '',
+      phone   = '',
       message = '',
-      source = '',
+      source  = '',
     } = req.body || {}
 
     const safeName    = normalizeText(name)
@@ -90,6 +94,7 @@ app.post('/api/waitlist', async (req, res) => {
     const safeCompany = normalizeText(company)
     const safePhone   = normalizeText(phone)
     const safeMessage = normalizeText(message)
+    const safeSource  = normalizeText(source).toLowerCase()
 
     // Validate required fields
     if (!safeName || !safeEmail || !safeMessage) {
@@ -99,38 +104,17 @@ app.post('/api/waitlist', async (req, res) => {
     if (!/^\S+@\S+\.\S+$/.test(safeEmail)) {
       return res.status(400).json({ error: 'Please provide a valid email address.' })
     }
-
-    // Check if email already exists in DB
-    const { data: existing, error: lookupError } = await publicSupabase
-      .from('waitlist_customers')
-      .select('id, source')
-      .eq('email', safeEmail)
-      .maybeSingle()
-
-    if (lookupError) {
-      console.error('Supabase lookup error:', lookupError)
-      return res.status(500).json({ error: lookupError.message })
+    if (!safeSource) {
+      return res.status(400).json({ error: 'Source is required.' })
     }
 
-    if (existing) {
-      if (existing.source === 'legacyx') {
-        // Already registered via legacyx — reject
-        return res.status(409).json({
-          error: 'This email is already on the waitlist.',
-          source: existing.source,
-        })
-      }
-      // Email exists but came from a different source — allow the insert
-    }
-
-    // Insert into DB
     const payload = {
       name:    safeName,
       email:   safeEmail,
       company: safeCompany || null,
       phone:   safePhone   || null,
       message: safeMessage,
-      source:  'legacyx',
+      source:  safeSource,
     }
 
     const { error: insertError } = await publicSupabase
@@ -146,6 +130,9 @@ app.post('/api/waitlist', async (req, res) => {
           error:
             'Supabase table waitlist_customers is missing. Run backend/supabase_waitlist.sql in the Supabase SQL Editor.',
         })
+      }
+      if (insertError.code === '23505') {
+        return res.status(409).json({ error: 'This email is already on the waitlist.' })
       }
 
       console.error('Supabase insert error:', insertError)
@@ -165,6 +152,8 @@ app.post('/api/waitlist', async (req, res) => {
     return res.status(500).json({ error: 'Unexpected server error.' })
   }
 })
+
+// ── Admin routes ──────────────────────────────────────────────────────────────
 
 app.get('/api/admin/waitlist', requireAdmin, async (req, res) => {
   try {
@@ -200,7 +189,6 @@ app.delete('/api/admin/waitlist/:id', requireAdmin, async (req, res) => {
     }
 
     const { id } = req.params
-
     if (!id) {
       return res.status(400).json({ error: 'Entry id is required.' })
     }

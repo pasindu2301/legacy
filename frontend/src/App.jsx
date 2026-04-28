@@ -66,24 +66,21 @@ const STEPS = [
     n: 1,
     title: 'Connect & clean',
     body: 'We integrate legacy platforms, spreadsheets, and cloud sources with automated quality checks so your data is trustworthy from day one.',
-    image:
-      section21Image,
+    image: section21Image,
     alt: 'Hands typing on a laptop representing data integration work',
   },
   {
     n: 2,
     title: 'Automate & illuminate',
     body: 'Intelligent pipelines replace manual effort with real-time dashboards, scheduled reports, and clear visibility into what matters.',
-    image:
-      section22Image,
+    image: section22Image,
     alt: 'Charts and graphs illustrating business analytics',
   },
   {
     n: 3,
     title: 'Activate AI & scale',
     body: 'Add predictive analytics and NL querying on a platform designed to grow with your organisation.',
-    image:
-      section23Image,
+    image: section23Image,
     alt: 'Modern workspace with technology and collaboration',
   },
 ]
@@ -250,7 +247,7 @@ function Hero() {
                 scrollToId('contact')
               }}
             >
-              Join waitlist
+              Free AI & Data Audit
             </a>
             <a
               href="#steps"
@@ -403,9 +400,29 @@ function ContactForm() {
   const [status, setStatus] = useState('idle')
   const [form, setForm] = useState({ name: '', email: '', message: '' })
   const [errorMessage, setErrorMessage] = useState('')
-  const source = (import.meta.env.VITE_WAITLIST_SOURCE || 'legacyx').toLowerCase().trim()
 
-  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://backend.legacyx.pro/').replace(/\/$/, '')
+  // Trailing slash stripped so we can append paths safely.
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'https://backend.legacyx.pro').replace(/\/$/, '')
+  const appSource = (import.meta.env.VITE_APP_SOURCE || 'legacyx').trim() || 'legacyx'
+
+  function getSimpleErrorMessage(error) {
+    const message = typeof error === 'string' ? error.toLowerCase() : ''
+
+    if (message.includes('already on the waitlist') || message.includes('already')) {
+      return 'This email is already registered.'
+    }
+    if (message.includes('name, email, and message are required') || message.includes('required')) {
+      return 'Please fill in all required fields.'
+    }
+    if (message.includes('valid email')) {
+      return 'Please enter a valid email address.'
+    }
+    if (message.includes('could not connect') || message.includes('fetch failed')) {
+      return 'Server is busy right now. Please try again in a moment.'
+    }
+
+    return 'Sorry, we could not send your message. Please try again.'
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -423,7 +440,7 @@ function ContactForm() {
           name: form.name,
           email: form.email,
           message: form.message,
-          source,
+          source: appSource,
         }),
       })
 
@@ -436,7 +453,8 @@ function ContactForm() {
       setStatus('sent')
       setForm({ name: '', email: '', message: '' })
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'We could not send your message right now.')
+      const rawMessage = err instanceof Error ? err.message : ''
+      setErrorMessage(getSimpleErrorMessage(rawMessage))
       setStatus('error')
     }
   }
