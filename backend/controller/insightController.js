@@ -2,7 +2,8 @@ const { getPosts, toggleLike, addComment, createPost, updatePost, deletePost } =
 
 async function handleGetPosts(req, res) {
   try {
-    const data = await getPosts()
+    const visitorKey = req.query.visitorKey || ''
+    const data = await getPosts(visitorKey)
     res.set('Cache-Control', 'no-store')
     return res.json({ data })
   } catch (err) {

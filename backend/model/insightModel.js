@@ -5,7 +5,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY,
 )
 
-async function getPosts() {
+async function getPosts(visitorKey) {
   const { data, error } = await supabase
     .from('insights_posts')
     .select(`id, title, body, created_at, like_count, comments:insights_post_comments(id, author_name, body, created_at)`)
@@ -13,10 +13,23 @@ async function getPosts() {
 
   if (error) throw error
 
+  // fetch which posts this visitor has liked
+  let likedPostIds = new Set()
+  if (visitorKey) {
+    const { data: likes } = await supabase
+      .from('insights_post_likes')
+      .select('post_id')
+      .eq('visitor_key', visitorKey)
+
+    if (likes) {
+      likes.forEach((l) => likedPostIds.add(l.post_id))
+    }
+  }
+
   return (data || []).map((post) => ({
     ...post,
     comments: post.comments || [],
-    liked: false,
+    liked: likedPostIds.has(post.id),
     like_count: typeof post.like_count === 'number' ? post.like_count : 0,
   }))
 }
@@ -78,16 +91,11 @@ async function addComment(postId, visitorKey, authorName, body) {
 async function createPost(title, body) {
   if (!title || !body) throw new Error('title and body are required.')
 
-  console.log('Supabase URL:', process.env.SUPABASE_URL)
-  console.log('Service key set:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
-
   const { data, error } = await supabase
     .from('insights_posts')
     .insert({ title, body })
     .select('id, title, body, created_at, like_count')
     .maybeSingle()
-
-  console.log('Insert result:', { data, error })
 
   if (error) throw error
   return data
