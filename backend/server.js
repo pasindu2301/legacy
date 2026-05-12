@@ -1,9 +1,11 @@
-const express = require('express')
+﻿const express = require('express')
 const cors = require('cors')
 const dotenv = require('dotenv')
-const { createClient } = require('@supabase/supabase-js')
 
 dotenv.config()
+
+const waitlistRoutes = require('./routes/waitlist')
+const { publicRouter, adminRouter } = require('./routes/insight')  // ← updated
 
 const app = express()
 const port = Number(process.env.PORT || 5000)
@@ -15,29 +17,11 @@ const allowedOrigins = [
   'https://www.intuvision.pro',
   'https://legacyx.pro',
   'https://www.legacyx.pro',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
 ]
-const adminPassword = process.env.ADMIN_PASSWORD || ''
-
-// ── Supabase ──────────────────────────────────────────────────────────────────
-
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-const publishableKey =
-  process.env.SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || ''
-const publicSupabaseKey = publishableKey || serviceRoleKey
-
-if (!supabaseUrl || !publicSupabaseKey) {
-  throw new Error('Missing Supabase credentials. Set SUPABASE_URL and one key.')
-}
-
-const publicSupabase = createClient(supabaseUrl, publicSupabaseKey)
-const adminSupabase = serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function normalizeText(value) {
-  return typeof value === 'string' ? value.trim() : ''
-}
 
 async function isBackendAlreadyRunning(checkHost, checkPort) {
   try {
@@ -50,206 +34,31 @@ async function isBackendAlreadyRunning(checkHost, checkPort) {
   }
 }
 
-function requireAdmin(req, res, next) {
-  const token = req.headers['x-admin-password']
-  if (!adminPassword || token !== adminPassword) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-  return next()
-}
-
-// ── Middleware ────────────────────────────────────────────────────────────────
-
 app.use(
   cors({
     origin(origin, callback) {
       if (!origin) return callback(null, true)
       const normalizedOrigin = origin.replace(/\/$/, '')
       if (allowedOrigins.includes(normalizedOrigin)) return callback(null, true)
+      if (
+        normalizedOrigin.startsWith('http://localhost:') ||
+        normalizedOrigin.startsWith('http://127.0.0.1:')
+      ) {
+        return callback(null, true)
+      }
       return callback(new Error('Not allowed by CORS'))
     },
   }),
 )
+
 app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+app.get('/api/health', (req, res) => res.json({ ok: true }))
 
-app.get('/api/health', (_, res) => {
-  res.json({ ok: true })
-})
-
-app.post('/api/waitlist', async (req, res) => {
-  try {
-    const {
-      name    = '',
-      email   = '',
-      company = '',
-      phone   = '',
-      message = '',
-      source  = '',
-    } = req.body || {}
-
-    const safeName    = normalizeText(name)
-    const safeEmail   = normalizeText(email).toLowerCase()
-    const safeCompany = normalizeText(company)
-    const safePhone   = normalizeText(phone)
-    const safeMessage = normalizeText(message)
-    const safeSource  = normalizeText(source).toLowerCase()
-
-    // Validate required fields
-    if (!safeName || !safeEmail || !safeMessage) {
-      return res.status(400).json({ error: 'Name, email, and message are required.' })
-    }
-
-    if (!/^\S+@\S+\.\S+$/.test(safeEmail)) {
-      return res.status(400).json({ error: 'Please provide a valid email address.' })
-    }
-    if (!safeSource) {
-      return res.status(400).json({ error: 'Source is required.' })
-    }
-
-    const payload = {
-      name:    safeName,
-      email:   safeEmail,
-      company: safeCompany || null,
-      phone:   safePhone   || null,
-      message: safeMessage,
-      source:  safeSource,
-    }
-
-    const { error: insertError } = await publicSupabase
-      .from('waitlist_customers')
-      .insert(payload)
-
-    if (insertError) {
-      if (
-        insertError.message?.includes("Could not find the table 'public.waitlist_customers'") ||
-        insertError.code === '42P01'
-      ) {
-        return res.status(500).json({
-          error:
-            'Supabase table waitlist_customers is missing. Run backend/supabase_waitlist.sql in the Supabase SQL Editor.',
-        })
-      }
-      if (insertError.code === '23505') {
-        return res.status(409).json({ error: 'This email is already on the waitlist.' })
-      }
-
-      console.error('Supabase insert error:', insertError)
-      const errorText = `${insertError.message || ''} ${insertError.details || ''}`.toLowerCase()
-      if (errorText.includes('fetch failed') || errorText.includes('connecttimeouterror')) {
-        return res.status(503).json({
-          error: 'Could not connect to Supabase right now. Please try again in a moment.',
-        })
-      }
-
-      return res.status(500).json({ error: insertError.message })
-    }
-
-    return res.status(201).json({ success: true })
-  } catch (err) {
-    console.error('Unexpected error in POST /api/waitlist:', err)
-    return res.status(500).json({ error: 'Unexpected server error.' })
-  }
-})
-
-// ── Admin routes ──────────────────────────────────────────────────────────────
-
-app.get('/api/admin/waitlist', requireAdmin, async (req, res) => {
-  try {
-    if (!adminSupabase) {
-      return res.status(500).json({
-        error: 'Missing SUPABASE_SERVICE_ROLE_KEY in backend .env for admin actions.',
-      })
-    }
-
-    const { data, error } = await adminSupabase
-      .from('waitlist_customers')
-      .select('id, name, email, company, phone, message, source, created_at')
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Supabase select error:', error)
-      return res.status(500).json({ error: error.message })
-    }
-
-    return res.json({ data })
-  } catch (err) {
-    console.error('Unexpected error in GET /api/admin/waitlist:', err)
-    return res.status(500).json({ error: 'Unexpected server error.' })
-  }
-})
-
-app.delete('/api/admin/waitlist/:id', requireAdmin, async (req, res) => {
-  try {
-    if (!adminSupabase) {
-      return res.status(500).json({
-        error: 'Missing SUPABASE_SERVICE_ROLE_KEY in backend .env for admin actions.',
-      })
-    }
-
-    const { id } = req.params
-    if (!id) {
-      return res.status(400).json({ error: 'Entry id is required.' })
-    }
-
-    const { data, error } = await adminSupabase
-      .from('waitlist_customers')
-      .delete()
-      .eq('id', id)
-      .select('id, email')
-      .maybeSingle()
-
-    if (error) {
-      console.error('Supabase delete error:', error)
-      return res.status(500).json({ error: error.message })
-    }
-
-    if (!data) {
-      return res.status(404).json({ error: 'Waitlist entry not found.' })
-    }
-
-    return res.json({ success: true, deleted: data })
-  } catch (err) {
-    console.error('Unexpected error in DELETE /api/admin/waitlist/:id:', err)
-    return res.status(500).json({ error: 'Unexpected server error.' })
-  }
-})
-
-app.delete('/api/admin/waitlist/by-email/:email', requireAdmin, async (req, res) => {
-  try {
-    if (!adminSupabase) {
-      return res.status(500).json({
-        error: 'Missing SUPABASE_SERVICE_ROLE_KEY in backend .env for admin actions.',
-      })
-    }
-
-    const rawEmail = decodeURIComponent(req.params.email || '')
-    const email = normalizeText(rawEmail).toLowerCase()
-
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required.' })
-    }
-
-    const { data, error } = await adminSupabase
-      .from('waitlist_customers')
-      .delete()
-      .eq('email', email)
-      .select('id, email')
-
-    if (error) {
-      console.error('Supabase delete-by-email error:', error)
-      return res.status(500).json({ error: error.message })
-    }
-
-    return res.json({ success: true, deletedCount: data?.length || 0 })
-  } catch (err) {
-    console.error('Unexpected error in DELETE /api/admin/waitlist/by-email/:email:', err)
-    return res.status(500).json({ error: 'Unexpected server error.' })
-  }
-})
-
-// ── Start server ──────────────────────────────────────────────────────────────
+app.use('/api', waitlistRoutes)
+app.use('/api/insights', publicRouter)        // ← public
+app.use('/api/admin/insights', adminRouter)   // ← admin only
 
 function startServer(preferredPort) {
   const server = app.listen(preferredPort, host, () => {
